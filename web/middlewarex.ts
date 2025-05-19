@@ -3,6 +3,7 @@ import { getSession } from "./lib/session";
 
 export default async function middleware(req: NextRequest) {
   const session = await getSession();
+  console.log("SESSION", session);
   if (!session || !session.user)
     return NextResponse.redirect(new URL("/auth/signin", req.nextUrl));
 
@@ -10,5 +11,5 @@ export default async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/profile"],
+  matcher: ["/profiles"],
 };

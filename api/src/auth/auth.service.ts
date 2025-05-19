@@ -10,8 +10,10 @@ import { hash, verify } from 'argon2';
 import type { AuthJwtPayload } from './types/auth-jwtPayload';
 import { JwtService } from '@nestjs/jwt';
 import refreshConfig from './config/refresh.config';
+import accessConfig from './config/jwt.config';
 import { ConfigType } from '@nestjs/config';
 import { Role } from '@prisma/client';
+import { access } from 'fs';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +22,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @Inject(refreshConfig.KEY)
     private refreshTokenConfig: ConfigType<typeof refreshConfig>,
+    @Inject(accessConfig.KEY)
+    private accessTokenConfig: ConfigType<typeof accessConfig>,
   ) {}
   async registerUser(createUserDto: CreateUserDto) {
     const user = await this.userService.findByEmail(createUserDto.email);
@@ -32,7 +36,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('User not found!');
     const isPasswordMatched = verify(user.password, password);
     if (!isPasswordMatched)
-      throw new UnauthorizedException('Invalid Credentials!');
+      throw new UnauthorizedException('Invalid Credentials!x');
 
     return { id: user.id, name: user.name, role: user.role };
   }
@@ -53,10 +57,12 @@ export class AuthService {
   async generateTokens(userId: number) {
     const payload: AuthJwtPayload = { sub: userId };
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload),
+      this.jwtService.signAsync(payload, {
+        secret: this.accessTokenConfig.secret,
+        expiresIn: this.accessTokenConfig.signOptions.expiresIn,
+      }),
       this.jwtService.signAsync(payload, this.refreshTokenConfig),
     ]);
-
     return {
       accessToken,
       refreshToken,
